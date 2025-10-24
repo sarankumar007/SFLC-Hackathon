@@ -6,6 +6,10 @@ import test_ping.schemas as schemas
 from test_ping.database import get_db, Base, engine
 from pythonping import ping
 import datetime
+from test_ping.email_trigger import send_email_function
+from test_ping.shutdown_label import get_shutdown_status
+from test_ping.co_ordinator import get_district
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -68,3 +72,44 @@ def delete_ping_probe(probe_id: int, db: Session = Depends(get_db)):
     db.delete(db_probe)
     db.commit()
     return {"detail": "Probe deleted"}
+
+################################# TO COMMIT #############################
+
+@app.post("/send-email")
+def trigger_email(request: schemas.EmailTriggerRequest):
+    try:
+        send_email_function([request.to], request.subject, request.body)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"message": f"Email sent to {request.to}"}
+
+@app.post("/ping/status/")
+def compute_shutdown_status(probe: schemas.PingProbeBase):
+    status = get_shutdown_status(probe)
+    return {"host": probe.host, "shutdown_status": status}
+
+# @app.post("/district/", response_model=schemas.CoordinateDistrictResponse)
+# def find_district(lat: float, lon: float):
+#     district = get_district(lat, lon)
+#     if not district:
+#         raise HTTPException(status_code=404, detail="District not found for the given coordinates")
+#     return schemas.CoordinateDistrictResponse(latitude=lat, longitude=lon, district=district)
+
+# @app.post("/district/")
+# def find_district(payload: schemas.CoordinateDistrictResponse):
+#     district = get_district(payload.latitude, payload.longitude)
+#     print(district)
+#     return schemas.CoordinateDistrictResponse(
+#         latitude=payload.latitude,
+#         longitude=payload.longitude,
+#         district= district
+#     )
+    # return {"latitude": payload.latitude, "longitude": payload.longitude,"district": district}
+@app.post("/district/")
+def find_district(payload: schemas.CoordinateDistrictResponse):
+    district = get_district(payload.latitude, payload.longitude)
+    return {
+        "latitude": payload.latitude,
+        "longitude": payload.longitude,
+        "district": district
+    }

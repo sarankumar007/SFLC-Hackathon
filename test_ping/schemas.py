@@ -19,3 +19,15 @@ class PingProbeResponse(PingProbeBase):
 
     class Config:
         orm_mode = True
+
+class EmailTriggerRequest(BaseModel):
+    to: str
+    subject: str
+    body: str
+
+
+
+# Pydantic schema for response
+class CoordinateDistrictResponse(BaseModel):
+    latitude: float
+    longitude: float
