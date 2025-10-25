@@ -125,6 +125,36 @@ def send_email(
         except Exception:
             pass
 
+
+
+def send_email_function(to_addrs: list, subject: str, body: str, html: bool = True, attachments: list = None):
+    """
+    Simplified function to send an email with environment configs.
+    """
+    SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    EMAIL_USERNAME = os.getenv("EMAIL_USERNAME")
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+
+    if not EMAIL_USERNAME or not EMAIL_PASSWORD:
+        raise ValueError("EMAIL_USERNAME and EMAIL_PASSWORD must be set in environment")
+
+    from_addr = EMAIL_USERNAME
+
+    msg = build_message(
+        subject=subject,
+        body=body,
+        from_addr=from_addr,
+        to_addrs=to_addrs,
+        html=html,
+        attachments=attachments
+    )
+
+    use_ssl = (SMTP_PORT == 465)
+    send_email(SMTP_SERVER, SMTP_PORT, EMAIL_USERNAME, EMAIL_PASSWORD, msg, use_ssl=use_ssl)
+
+
+
 def example_usage():
     # Read configuration from environment (recommended)
     SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
@@ -180,30 +210,3 @@ if __name__ == "__main__":
     example_usage()
 
 
-
-
-def send_email_function(to_addrs: list, subject: str, body: str, html: bool = True, attachments: list = None):
-    """
-    Simplified function to send an email with environment configs.
-    """
-    SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-    EMAIL_USERNAME = os.getenv("EMAIL_USERNAME")
-    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-
-    if not EMAIL_USERNAME or not EMAIL_PASSWORD:
-        raise ValueError("EMAIL_USERNAME and EMAIL_PASSWORD must be set in environment")
-
-    from_addr = EMAIL_USERNAME
-
-    msg = build_message(
-        subject=subject,
-        body=body,
-        from_addr=from_addr,
-        to_addrs=to_addrs,
-        html=html,
-        attachments=attachments
-    )
-
-    use_ssl = (SMTP_PORT == 465)
-    send_email(SMTP_SERVER, SMTP_PORT, EMAIL_USERNAME, EMAIL_PASSWORD, msg, use_ssl=use_ssl)

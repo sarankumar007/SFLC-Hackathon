@@ -1,22 +1,11 @@
-# ----------------------
-# Imports
-# ----------------------
+
 from datetime import datetime
 from . import schemas
 
-# import schemas  # Pydantic models in the same folder
-import warnings
-warnings.simplefilter("ignore", UserWarning)
-
-# ----------------------
-# Configuration
-# ----------------------
 PACKET_LOSS_THRESHOLD = 50.0  # %
 RTT_SPIKE_THRESHOLD = 200.0  # ms
 
-# ----------------------
-# Helper Function
-# ----------------------
+
 def calculate_confidence(packet_loss: float, rtt_max: float) -> int:
     """
     Calculate a confidence score based on network probe metrics.
@@ -27,10 +16,6 @@ def calculate_confidence(packet_loss: float, rtt_max: float) -> int:
     if rtt_max > RTT_SPIKE_THRESHOLD:
         score += 30
     return score
-
-# ----------------------
-# Main Function for PingProbeBase Object
-# ----------------------
 
 def get_shutdown_status(probe: schemas.PingProbeBase) -> str:
     """
@@ -47,9 +32,6 @@ def get_shutdown_status(probe: schemas.PingProbeBase) -> str:
     else:
         return "not confirmed"
 
-# ----------------------
-# Example Usage
-# ----------------------
 if __name__ == "__main__":
     # Create a dummy PingProbeBase object for testing
     probe_instance = schemas.PingProbeBase(
