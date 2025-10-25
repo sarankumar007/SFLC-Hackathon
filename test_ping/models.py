@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime,Boolean
 from test_ping.database import Base
 import datetime
+from typing import Optional
 
 class PingProbe(Base):
     __tablename__ = "ping_probes"
@@ -14,3 +15,7 @@ class PingProbe(Base):
     rtt_min_ms = Column(Float)
     rtt_max_ms = Column(Float)
     rtt_avg_ms = Column(Float)
+    confirmed_shutdown = Column(Boolean, default=False)
+    confirmed_shutdown_time = Column(DateTime, nullable=True)
+    restored_time = Column(DateTime, nullable=True)
+    duration: Optional[str]  

@@ -68,3 +68,43 @@ def delete_ping_probe(probe_id: int, db: Session = Depends(get_db)):
     db.delete(db_probe)
     db.commit()
     return {"detail": "Probe deleted"}
+
+@app.patch("/ping/{probe_id}/confirm", response_model=schemas.PingProbeResponse)
+def confirm_shutdown(probe_id: int, db: Session = Depends(get_db)):
+    probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
+    if not probe:
+        raise HTTPException(status_code=404, detail="Probe not found")
+    probe.confirmed_shutdown = True
+    probe.confirmed_shutdown_time = datetime.datetime.utcnow()
+    db.commit()
+    db.refresh(probe)
+    return _with_duration(probe)
+
+@app.patch("/ping/{probe_id}/restore", response_model=schemas.PingProbeResponse)
+def mark_internet_restored(probe_id: int, db: Session = Depends(get_db)):
+    probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
+    if not probe:
+        raise HTTPException(status_code=404, detail="Probe not found")
+    probe.confirmed_shutdown = False
+    probe.restored_time = datetime.datetime.utcnow()
+    db.commit()
+    db.refresh(probe)
+    return _with_duration(probe)
+
+@app.get("/ping/confirmed", response_model=List[schemas.PingProbeResponse])
+def get_confirmed_shutdowns(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    probes = db.query(models.PingProbe).filter(models.PingProbe.confirmed_shutdown == True).offset(skip).limit(limit).all()
+    return [_with_duration(p) for p in probes]
+
+def _with_duration(probe: models.PingProbe) -> schemas.PingProbeResponse:
+    duration = None
+    if probe.confirmed_shutdown_time and probe.restored_time:
+        diff = probe.restored_time - probe.confirmed_shutdown_time
+        duration = str(diff)  
+    schema_obj = schemas.PingProbeResponse.from_orm(probe)
+    schema_obj.duration = duration
+    return schema_obj
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("test_ping.main:app", host="127.0.0.1", port=8000, reload=True, workers=1)
