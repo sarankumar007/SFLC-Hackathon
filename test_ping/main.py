@@ -105,6 +105,3 @@ def _with_duration(probe: models.PingProbe) -> schemas.PingProbeResponse:
     schema_obj.duration = duration
     return schema_obj
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("test_ping.main:app", host="127.0.0.1", port=8000, reload=True, workers=1)
