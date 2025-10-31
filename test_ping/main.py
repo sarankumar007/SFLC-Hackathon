@@ -6,37 +6,74 @@ import test_ping.schemas as schemas
 from test_ping.database import get_db, Base, engine
 from pythonping import ping
 import datetime
+from pydantic import BaseModel
+import logging
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+class PingRequest(BaseModel):
+    host: str
+
 @app.post("/ping/", response_model=schemas.PingProbeResponse)
-def create_ping_probe(host: str, db: Session = Depends(get_db)):
+def create_ping_probe(ping_request: PingRequest, db: Session = Depends(get_db)):
+    host = ping_request.host
     count = 4
     timeout = 2
-    response = ping(host, count=count, timeout=timeout)
-    packets_sent = count
-    packets_received = response.success()
-    packet_loss = (packets_sent - packets_received) / packets_sent
-    rtt_min = response.rtt_min_ms
-    rtt_max = response.rtt_max_ms
-    rtt_avg = response.rtt_avg_ms
-    probe_time = datetime.datetime.utcnow()
-    db_probe = models.PingProbe(
-        host=host,
-        probe_time=probe_time,
-        packets_sent=packets_sent,
-        packets_received=packets_received,
-        packet_loss=packet_loss,
-        rtt_min_ms=rtt_min,
-        rtt_max_ms=rtt_max,
-        rtt_avg_ms=rtt_avg
-    )
-    db.add(db_probe)
-    db.commit()
-    db.refresh(db_probe)
-    return db_probe
+
+    try:
+        response = ping(host, count=count, timeout=timeout)
+        packets_sent = count
+        packets_received = sum(1 for r in response._responses if r.success)
+        packet_loss = (packets_sent - packets_received) / float(packets_sent)
+        rtt_min = response.rtt_min_ms
+        rtt_max = response.rtt_max_ms
+        rtt_avg = response.rtt_avg_ms
+        probe_time = datetime.datetime.utcnow()
+
+        db_probe = models.PingProbe(
+            host=host,
+            probe_time=probe_time,
+            packets_sent=packets_sent,
+            packets_received=packets_received,
+            packet_loss=packet_loss,
+            rtt_min_ms=rtt_min,
+            rtt_max_ms=rtt_max,
+            rtt_avg_ms=rtt_avg
+        )
+        db.add(db_probe)
+        db.commit()
+        db.refresh(db_probe)
+        return _with_duration(db_probe)
+
+    except Exception as e:
+        logging.error(f"Ping error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ping error: {str(e)}")
+
+@app.post("/ping_report/", response_model=schemas.PingReport)
+def receive_ping_report(report: schemas.PingReport, db: Session = Depends(get_db)):
+    if report.pingResults:
+        first_result = report.pingResults[0]
+
+        db_probe = models.PingProbe(
+            host=first_result.target,
+            probe_time=datetime.datetime.utcfromtimestamp(report.timestamp / 1000),
+            packets_sent=first_result.totalPacketsSent,
+            packets_received=first_result.totalPacketsReceived,
+            packet_loss=first_result.packetLoss,
+            rtt_min_ms=first_result.minResponseTime or 0.0,
+            rtt_max_ms=first_result.maxResponseTime or 0.0,
+            rtt_avg_ms=first_result.avgResponseTime or 0.0,
+            confirmed_shutdown=report.isConfirmed,
+            confirmed_shutdown_time=None,
+            restored_time=None
+        )
+        db.add(db_probe)
+        db.commit()
+        db.refresh(db_probe)
+
+    return report
 
 @app.get("/ping/", response_model=List[schemas.PingProbeResponse])
 def get_ping_probes(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
