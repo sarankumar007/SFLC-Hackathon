@@ -111,6 +111,7 @@ def _with_duration(probe: models.PingProbe) -> schemas.PingProbeResponse:
 
 ################################# TO COMMIT #############################
 
+
 @app.post("/send-email")
 def trigger_email(request: schemas.EmailTriggerRequest):
     try:
@@ -119,16 +120,63 @@ def trigger_email(request: schemas.EmailTriggerRequest):
         raise HTTPException(status_code=500, detail=str(e))
     return {"message": f"Email sent to {request.to}"}
 
-@app.post("/ping/status/")
-def compute_shutdown_status(probe: schemas.PingProbeBase):
-    status = get_shutdown_status(probe)
-    return {"host": probe.host, "shutdown_status": status}
+# @app.post("/ping/status/")
+# def compute_shutdown_status(probe: schemas.PingProbeBase):
+#     status = get_shutdown_status(probe)
+#     return {"host": probe.host, "shutdown_status": status}
 
-@app.post("/district/")
-def find_district(payload: schemas.CoordinateDistrictResponse):
-    district = get_district(payload.latitude, payload.longitude)
-    return {
-        "latitude": payload.latitude,
-        "longitude": payload.longitude,
-        "district": district
-    }
+
+# @app.post("/district/")
+# def find_district(payload: schemas.CoordinateDistrictResponse):
+#     district = get_district(payload.latitude, payload.longitude)
+#     return {
+#         "latitude": payload.latitude,
+#         "longitude": payload.longitude,
+#         "district": district
+#     }
+
+@app.patch("/ping/{probe_id}/status", response_model=schemas.PingProbeResponse)
+def compute_and_update_shutdown_status(probe_id: int, db: Session = Depends(get_db)):
+    probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
+    if not probe:
+        raise HTTPException(status_code=404, detail="Probe not found")
+
+    status = get_shutdown_status(probe)
+
+    if status == "confirmed":
+        probe.confirmed_shutdown = True
+        probe.confirmed_shutdown_time = datetime.datetime.utcnow()
+    elif status in ("not confirmed", "suspected"):
+        probe.confirmed_shutdown = False
+        probe.restored_time = datetime.datetime.utcnow()
+
+    db.commit()
+    db.refresh(probe)
+
+    return _with_duration(probe)
+
+
+@app.patch("/district/{probe_id}", response_model=schemas.CoordinateDistrictResponse)
+def update_probe_district(probe_id: int, db: Session = Depends(get_db)):
+    probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
+    if not probe:
+        raise HTTPException(status_code=404, detail="Probe not found")
+
+
+    if probe.latitude is None or probe.longitude is None:
+        raise HTTPException(status_code=400, detail="Probe does not have coordinates")
+
+    district = get_district(probe.latitude, probe.longitude)
+
+    if not district:
+        raise HTTPException(status_code=404, detail="District not found for given coordinates")
+
+    probe.district = district
+    db.commit()
+    db.refresh(probe)
+
+    return schemas.CoordinateDistrictResponse(
+        latitude=probe.latitude,
+        longitude=probe.longitude,
+        district=probe.district
+    )

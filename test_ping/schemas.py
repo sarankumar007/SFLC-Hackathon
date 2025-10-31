@@ -29,16 +29,21 @@ class PingProbeResponse(PingProbeBase):
     restored_time: Optional[datetime]
     duration: Optional[str]
 
-    class Config:
-        orm_mode = True
-
-
-class PingProbeResponse(PingProbeBase):
-    id: int
-    probe_time: datetime
+    signal_strength: Optional[int]           
+    signal_quality: Optional[str]  
+    network_type: Optional[str]              
+    status: Optional[str]    
 
     class Config:
         orm_mode = True
+
+
+# class PingProbeResponse(PingProbeBase):
+#     id: int
+#     probe_time: datetime
+
+#     class Config:
+#         orm_mode = True
 
 class EmailTriggerRequest(BaseModel):
     to: str
@@ -50,3 +55,4 @@ class EmailTriggerRequest(BaseModel):
 class CoordinateDistrictResponse(BaseModel):
     latitude: float
     longitude: float
+    district: str
