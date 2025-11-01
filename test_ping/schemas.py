@@ -1,4 +1,4 @@
-from pydantic import BaseModel, UUID4, Field
+from pydantic import BaseModel, UUID4, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -12,8 +12,12 @@ class PingProbeBase(BaseModel):
     rtt_max_ms: float
     rtt_avg_ms: float
 
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PingProbeCreate(PingProbeBase):  
     pass
+
 
 class PingResult(BaseModel):
     timestamp: int
@@ -28,8 +32,8 @@ class PingResult(BaseModel):
     totalPacketsSent: int
     totalPacketsReceived: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class DeviceInfo(BaseModel):
     androidVersion: str
@@ -37,6 +41,9 @@ class DeviceInfo(BaseModel):
     carrier: str
     signalStrength: int
     batteryLevel: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 
 class PingReport(BaseModel):
     id: str  # UUID string
@@ -53,8 +60,8 @@ class PingReport(BaseModel):
     pingResults: List[PingResult]
     deviceInfo: DeviceInfo
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class PingProbeResponse(BaseModel):
     id: UUID4
@@ -68,5 +75,4 @@ class PingProbeResponse(BaseModel):
     network_type: Optional[str] = Field(default=None, alias='networkType')
     status: Optional[str] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
