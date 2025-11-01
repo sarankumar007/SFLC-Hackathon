@@ -22,17 +22,17 @@ class PingProbeCreate(PingProbeBase):
 class PingResult(BaseModel):
     timestamp: int
     success: bool
-    responseTime: Optional[float] = None
+    responseTime: Optional[float] = Field(None, alias='response_time')
     target: str
-    packetLoss: float
+    packetLoss: float = Field(..., alias='packet_loss')
     jitter: Optional[float] = None
-    minResponseTime: Optional[float] = None
-    maxResponseTime: Optional[float] = None
-    avgResponseTime: Optional[float] = None
-    totalPacketsSent: int
-    totalPacketsReceived: int
+    minResponseTime: Optional[float] = Field(None, alias='min_response_time')
+    maxResponseTime: Optional[float] = Field(None, alias='max_response_time')
+    avgResponseTime: Optional[float] = Field(None, alias='avg_response_time')
+    totalPacketsSent: int = Field(..., alias='total_packets_sent')
+    totalPacketsReceived: int = Field(..., alias='total_packets_received')
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class DeviceInfo(BaseModel):
