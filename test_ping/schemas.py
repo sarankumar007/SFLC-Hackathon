@@ -18,6 +18,9 @@ class PingResult(BaseModel):
     class Config:
         orm_mode = True
 
+class PingProbeCreate(PingProbeBase):
+    pass
+
 class DeviceInfo(BaseModel):
     androidVersion: str
     deviceModel: str
