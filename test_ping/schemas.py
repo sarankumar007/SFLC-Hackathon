@@ -76,3 +76,8 @@ class PingProbeResponse(BaseModel):
     status: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+class EmailTriggerRequest(BaseModel):
+    to: str
+    subject: str
+    body: str
