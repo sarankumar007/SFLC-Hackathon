@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 import test_ping.models as models
 import test_ping.schemas as schemas
@@ -87,18 +87,7 @@ def receive_ping_report(report: schemas.PingReport, db: Session = Depends(get_db
             max_response_time=result.maxResponseTime,
             avg_response_time=result.avgResponseTime,
             total_packets_sent=result.totalPacketsSent,
-            total_packets_received=result.totalPacketsReceived,
-            host=report.pingResults[0].target if report.pingResults else None,
-            probe_time=datetime.datetime.utcfromtimestamp(report.timestamp / 1000),
-            confirmed_shutdown=report.isConfirmed,
-            signal_strength=report.deviceInfo.signalStrength,
-            signal_quality=report.signalQuality,
-            network_type=report.networkType,
-            status=report.status,
-            district=report.district,
-            state=report.state,
-            latitude=report.latitude,
-            longitude=report.longitude
+            total_packets_received=result.totalPacketsReceived
         )
         db.add(db_result)
     db.commit()
@@ -107,11 +96,12 @@ def receive_ping_report(report: schemas.PingReport, db: Session = Depends(get_db
 
 @app.get("/ping/", response_model=List[schemas.PingProbeResponse])
 def get_ping_probes(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    return db.query(models.PingProbe).offset(skip).limit(limit).all()
+    probes = db.query(models.PingProbe).options(joinedload(models.PingProbe.ping_results)).offset(skip).limit(limit).all()
+    return probes
 
 @app.get("/ping/{probe_id}", response_model=schemas.PingProbeResponse)
 def get_ping_probe(probe_id: UUID, db: Session = Depends(get_db)):
-    probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
+    probe = db.query(models.PingProbe).options(joinedload(models.PingProbe.ping_results)).filter(models.PingProbe.id == probe_id).first()
     if not probe:
         raise HTTPException(status_code=404, detail="Probe not found")
     return probe
