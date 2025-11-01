@@ -8,7 +8,10 @@ from pythonping import ping
 import datetime
 from pydantic import BaseModel
 import logging
-
+from test_ping.email_trigger import send_email_function
+from test_ping.shutdown_label import get_shutdown_status
+from test_ping.co_ordinator import get_district
+from uuid import UUID
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -54,40 +57,38 @@ def create_ping_probe(ping_request: PingRequest, db: Session = Depends(get_db)):
 @app.post("/ping_report/", response_model=schemas.PingReport)
 def receive_ping_report(report: schemas.PingReport, db: Session = Depends(get_db)):
     if report.pingResults:
-        first_result = report.pingResults[0]
-
-        db_probe = models.PingProbe(
-            host=first_result.target,
-            probe_time=datetime.datetime.utcfromtimestamp(report.timestamp / 1000),
-            packets_sent=first_result.totalPacketsSent,
-            packets_received=first_result.totalPacketsReceived,
-            packet_loss=first_result.packetLoss,
-            rtt_min_ms=first_result.minResponseTime or 0.0,
-            rtt_max_ms=first_result.maxResponseTime or 0.0,
-            rtt_avg_ms=first_result.avgResponseTime or 0.0,
-            confirmed_shutdown=report.isConfirmed,
-            confirmed_shutdown_time=None,
-            restored_time=None
-        )
-        db.add(db_probe)
+        for result in report.pingResults:
+            db_probe = models.PingProbe(
+                host=result.target,
+                probe_time=datetime.datetime.utcfromtimestamp(report.timestamp / 1000),
+                packets_sent=result.totalPacketsSent,
+                packets_received=result.totalPacketsReceived,
+                packet_loss=result.packetLoss,
+                rtt_min_ms=result.minResponseTime or 0.0,
+                rtt_max_ms=result.maxResponseTime or 0.0,
+                rtt_avg_ms=result.avgResponseTime or 0.0,
+                confirmed_shutdown=report.isConfirmed,
+                confirmed_shutdown_time=None,
+                restored_time=None
+            )
+            db.add(db_probe)
         db.commit()
-        db.refresh(db_probe)
-
     return report
+
 
 @app.get("/ping/", response_model=List[schemas.PingProbeResponse])
 def get_ping_probes(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
     return db.query(models.PingProbe).offset(skip).limit(limit).all()
 
 @app.get("/ping/{probe_id}", response_model=schemas.PingProbeResponse)
-def get_ping_probe(probe_id: int, db: Session = Depends(get_db)):
+def get_ping_probe(probe_id: UUID, db: Session = Depends(get_db)):
     probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
     if not probe:
         raise HTTPException(status_code=404, detail="Probe not found")
     return probe
 
 @app.put("/ping/{probe_id}", response_model=schemas.PingProbeResponse)
-def update_ping_probe(probe_id: int, probe_update: schemas.PingProbeCreate, db: Session = Depends(get_db)):
+def update_ping_probe(probe_id: UUID, probe_update: schemas.PingProbeCreate, db: Session = Depends(get_db)):
     db_probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
     if not db_probe:
         raise HTTPException(status_code=404, detail="Probe not found")
@@ -98,7 +99,7 @@ def update_ping_probe(probe_id: int, probe_update: schemas.PingProbeCreate, db: 
     return db_probe
 
 @app.delete("/ping/{probe_id}")
-def delete_ping_probe(probe_id: int, db: Session = Depends(get_db)):
+def delete_ping_probe(probe_id: UUID, db: Session = Depends(get_db)):
     db_probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
     if not db_probe:
         raise HTTPException(status_code=404, detail="Probe not found")
@@ -107,7 +108,7 @@ def delete_ping_probe(probe_id: int, db: Session = Depends(get_db)):
     return {"detail": "Probe deleted"}
 
 @app.patch("/ping/{probe_id}/confirm", response_model=schemas.PingProbeResponse)
-def confirm_shutdown(probe_id: int, db: Session = Depends(get_db)):
+def confirm_shutdown(probe_id: UUID, db: Session = Depends(get_db)):
     probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
     if not probe:
         raise HTTPException(status_code=404, detail="Probe not found")
@@ -118,7 +119,7 @@ def confirm_shutdown(probe_id: int, db: Session = Depends(get_db)):
     return _with_duration(probe)
 
 @app.patch("/ping/{probe_id}/restore", response_model=schemas.PingProbeResponse)
-def mark_internet_restored(probe_id: int, db: Session = Depends(get_db)):
+def mark_internet_restored(probe_id: UUID, db: Session = Depends(get_db)):
     probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
     if not probe:
         raise HTTPException(status_code=404, detail="Probe not found")
@@ -142,3 +143,68 @@ def _with_duration(probe: models.PingProbe) -> schemas.PingProbeResponse:
     schema_obj.duration = duration
     return schema_obj
 
+@app.post("/send-email")
+def trigger_email(request: schemas.EmailTriggerRequest):
+    try:
+        send_email_function([request.to], request.subject, request.body)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"message": f"Email sent to {request.to}"}
+
+# @app.post("/ping/status/")
+# def compute_shutdown_status(probe: schemas.PingProbeBase):
+#     status = get_shutdown_status(probe)
+#     return {"host": probe.host, "shutdown_status": status}
+
+# @app.post("/district/")
+# def find_district(payload: schemas.CoordinateDistrictResponse):
+#     district = get_district(payload.latitude, payload.longitude)
+#     return {
+#         "latitude": payload.latitude,
+#         "longitude": payload.longitude,
+#         "district": district
+#     }
+
+@app.patch("/ping/{probe_id}/status", response_model=schemas.PingProbeResponse)
+def compute_and_update_shutdown_status(probe_id: UUID, db: Session = Depends(get_db)):
+    probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
+    if not probe:
+        raise HTTPException(status_code=404, detail="Probe not found")
+
+    status = get_shutdown_status(probe)
+
+    if status == "confirmed":
+        probe.confirmed_shutdown = True
+        probe.confirmed_shutdown_time = datetime.datetime.utcnow()
+    elif status in ("not confirmed", "suspected"):
+        probe.confirmed_shutdown = False
+        probe.restored_time = datetime.datetime.utcnow()
+
+    db.commit()
+    db.refresh(probe)
+
+    return _with_duration(probe)
+
+@app.patch("/district/{probe_id}", response_model=schemas.CoordinateDistrictResponse)
+def update_probe_district(probe_id: UUID, db: Session = Depends(get_db)):
+    probe = db.query(models.PingProbe).filter(models.PingProbe.id == probe_id).first()
+    if not probe:
+        raise HTTPException(status_code=404, detail="Probe not found")
+
+    if probe.latitude is None or probe.longitude is None:
+        raise HTTPException(status_code=400, detail="Probe does not have coordinates")
+
+    district = get_district(probe.latitude, probe.longitude)
+
+    if not district:
+        raise HTTPException(status_code=404, detail="District not found for given coordinates")
+
+    probe.district = district
+    db.commit()
+    db.refresh(probe)
+
+    return schemas.CoordinateDistrictResponse(
+        latitude=probe.latitude,
+        longitude=probe.longitude,
+        district=probe.district
+    )
