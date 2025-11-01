@@ -57,6 +57,7 @@ def create_ping_probe(ping_request: PingRequest, db: Session = Depends(get_db)):
 @app.post("/ping_report/", response_model=schemas.PingReport)
 def receive_ping_report(report: schemas.PingReport, db: Session = Depends(get_db)):
     db_probe = models.PingProbe(
+        id=UUID(report.id),
         host=report.pingResults[0].target if report.pingResults else None,
         probe_time=datetime.datetime.utcfromtimestamp(report.timestamp / 1000),
         confirmed_shutdown=report.isConfirmed,
