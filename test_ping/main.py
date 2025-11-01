@@ -56,25 +56,42 @@ def create_ping_probe(ping_request: PingRequest, db: Session = Depends(get_db)):
 
 @app.post("/ping_report/", response_model=schemas.PingReport)
 def receive_ping_report(report: schemas.PingReport, db: Session = Depends(get_db)):
-    if report.pingResults:
-        for result in report.pingResults:
-            db_probe = models.PingProbe(
-                host=result.target,
-                probe_time=datetime.datetime.utcfromtimestamp(report.timestamp / 1000),
-                packets_sent=result.totalPacketsSent,
-                packets_received=result.totalPacketsReceived,
-                packet_loss=result.packetLoss,
-                rtt_min_ms=result.minResponseTime or 0.0,
-                rtt_max_ms=result.maxResponseTime or 0.0,
-                rtt_avg_ms=result.avgResponseTime or 0.0,
-                confirmed_shutdown=report.isConfirmed,
-                confirmed_shutdown_time=None,
-                restored_time=None
-            )
-            db.add(db_probe)
-        db.commit()
-    return report
+    db_probe = models.PingProbe(
+        host=report.pingResults[0].target if report.pingResults else None,
+        probe_time=datetime.datetime.utcfromtimestamp(report.timestamp / 1000),
+        confirmed_shutdown=report.isConfirmed,
+        signal_strength=report.deviceInfo.signalStrength,
+        signal_quality=report.signalQuality,
+        network_type=report.networkType,
+        status=report.status,
+        district=report.district,
+        state=report.state,
+        latitude=report.latitude,
+        longitude=report.longitude
+    )
+    db.add(db_probe)
+    db.commit()
+    db.refresh(db_probe)
 
+    for result in report.pingResults:
+        db_result = models.PingResult(
+            probe_id=db_probe.id,
+            timestamp=result.timestamp,
+            success=result.success,
+            response_time=result.responseTime,
+            target=result.target,
+            packet_loss=result.packetLoss,
+            jitter=result.jitter,
+            min_response_time=result.minResponseTime,
+            max_response_time=result.maxResponseTime,
+            avg_response_time=result.avgResponseTime,
+            total_packets_sent=result.totalPacketsSent,
+            total_packets_received=result.totalPacketsReceived
+        )
+        db.add(db_result)
+    db.commit()
+
+    return report
 
 @app.get("/ping/", response_model=List[schemas.PingProbeResponse])
 def get_ping_probes(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
