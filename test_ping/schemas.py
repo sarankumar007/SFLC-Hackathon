@@ -2,6 +2,19 @@ from pydantic import BaseModel, UUID4, Field
 from typing import Optional, List
 from datetime import datetime
 
+
+class PingProbeBase(BaseModel):  
+    host: str
+    packets_sent: int
+    packets_received: int
+    packet_loss: float
+    rtt_min_ms: float
+    rtt_max_ms: float
+    rtt_avg_ms: float
+
+class PingProbeCreate(PingProbeBase):  
+    pass
+
 class PingResult(BaseModel):
     timestamp: int
     success: bool
@@ -17,9 +30,6 @@ class PingResult(BaseModel):
 
     class Config:
         orm_mode = True
-
-class PingProbeCreate(PingProbeBase):
-    pass
 
 class DeviceInfo(BaseModel):
     androidVersion: str
