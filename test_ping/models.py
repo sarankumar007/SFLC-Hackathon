@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, BigInteger
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from test_ping.database import Base
