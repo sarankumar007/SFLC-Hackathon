@@ -81,3 +81,11 @@ class EmailTriggerRequest(BaseModel):
     to: str
     subject: str
     body: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CoordinateDistrictResponse(BaseModel):
+    latitude: float
+    longitude: float
+    district: str
+    model_config = ConfigDict(from_attributes=True)
