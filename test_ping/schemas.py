@@ -74,6 +74,7 @@ class PingProbeResponse(BaseModel):
     signal_quality: Optional[str] = Field(default=None, alias='signalQuality')
     network_type: Optional[str] = Field(default=None, alias='networkType')
     status: Optional[str] = None
+    pingResults: List[PingResult] = []
 
     model_config = ConfigDict(from_attributes=True)
 
