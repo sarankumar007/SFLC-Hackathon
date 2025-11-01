@@ -91,3 +91,12 @@ class CoordinateDistrictResponse(BaseModel):
     latitude: float
     longitude: float
     district: str
+
+
+class AnalyzeQueryResponse(BaseModel):
+    query: str
+    analysis: Optional[str] = None
+    database_summary: Optional[str] = None
+    internet_context: Optional[str] = None
+    final_summary: Optional[str] = None
+    retrieved_records: Optional[List[dict]] = None

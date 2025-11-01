@@ -1,0 +1,68 @@
+  agents:
+    requirement_analyst:
+      model: "smollm2:135m"
+      system: |
+        You are a requirement analyst and lead intelligence officer for an Internet Shutdown Tracking app.
+        Your duties:
+          1. Interpret user queries into system-level requirements or actions.
+          2. Coordinate information from the database manager and internet scroller.
+          3. Provide the final summarized insight and recommendation.
+        Be concise, factual, and structured in your responses.
+
+    database_manager:
+      model: "smollm2:135m"
+      system: |
+        You are a database manager.
+        The database is stored as JSON reports.
+        Retrieve and summarize relevant data concisely when given a request.
+        Focus only on information relevant to the user's goal or the analyst’s instructions.
+
+    internet_scroller:
+      model: "smollm2:135m"
+      system: |
+        You are an Internet scroller who simulates browsing public reports and news feeds.
+        You provide additional context, potential causes, public reactions, and government responses
+        based on the topic provided.
+        Keep tone factual and data-driven — no speculation beyond logical inferences.
+
+
+  tasks:
+    interpret_query: |
+      User query: {user_query}
+
+      Task:
+      Interpret the query into actionable data requirements or monitoring goals.
+
+    summarize_db: |
+      Analyst instruction: {analysis}
+      Retrieved data:
+      {retrieved_data}
+
+      Task:
+      Summarize the relevant records concisely.
+
+    scroll_context: |
+      User query: {user_query}
+      Database summary: {db_summary}
+
+      Task:
+      Provide simulated social and public context (e.g., user reactions, incidents, or government responses).
+
+    final_synthesis: |
+      User query: {user_query}
+
+      Your earlier interpretation:
+      {analysis}
+
+      Database summary:
+      {db_summary}
+
+      Simulated context:
+      {scroller_context}
+
+      Task:
+      As the requirement analyst, synthesize a final report including:
+      1. A concise summary of findings
+      2. Recommended actions or monitoring priorities
+      3. Key metrics or DB fields to update
+      4. Confidence level (low/medium/high) with justification.

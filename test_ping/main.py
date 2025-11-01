@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 import test_ping.models as models
@@ -11,6 +11,7 @@ import logging
 from test_ping.email_trigger import send_email_function
 from test_ping.shutdown_label import get_shutdown_status
 from test_ping.co_ordinator import get_district
+from test_ping.test import analyze_query
 from uuid import UUID
 Base.metadata.create_all(bind=engine)
 
@@ -208,3 +209,21 @@ def update_probe_district(probe_id: UUID, db: Session = Depends(get_db)):
         longitude=probe.longitude,
         district=probe.district
     )
+
+###############################################################################
+
+
+@app.get("/analyze_query/", response_model=schemas.AnalyzeQueryResponse)
+def analyze_user_query(query: str = Query(..., description="Natural language query for analysis")):
+    try:
+        result = analyze_query(query)
+        return schemas.AnalyzeQueryResponse(
+            query=query,
+            analysis=result.get("analysis"),
+            database_summary=result.get("db_summary"),
+            internet_context=result.get("scroller"),
+            final_summary=result.get("final"),
+            retrieved_records=result.get("retrieved"),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
