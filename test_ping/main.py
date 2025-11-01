@@ -87,7 +87,18 @@ def receive_ping_report(report: schemas.PingReport, db: Session = Depends(get_db
             max_response_time=result.maxResponseTime,
             avg_response_time=result.avgResponseTime,
             total_packets_sent=result.totalPacketsSent,
-            total_packets_received=result.totalPacketsReceived
+            total_packets_received=result.totalPacketsReceived,
+            host=report.pingResults[0].target if report.pingResults else None,
+            probe_time=datetime.datetime.utcfromtimestamp(report.timestamp / 1000),
+            confirmed_shutdown=report.isConfirmed,
+            signal_strength=report.deviceInfo.signalStrength,
+            signal_quality=report.signalQuality,
+            network_type=report.networkType,
+            status=report.status,
+            district=report.district,
+            state=report.state,
+            latitude=report.latitude,
+            longitude=report.longitude
         )
         db.add(db_result)
     db.commit()
