@@ -42,7 +42,7 @@ class PingResult(Base):
     id = Column(Integer, primary_key=True, index=True)
     probe_id = Column(UUID(as_uuid=True), ForeignKey("ping_probes.id", ondelete="CASCADE"), nullable=False)
 
-    timestamp = Column(Integer)
+    timestamp = Column(BigInteger)
     success = Column(Boolean)
     response_time = Column(Float, nullable=True)
     target = Column(String)
