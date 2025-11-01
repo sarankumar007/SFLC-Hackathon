@@ -94,12 +94,12 @@ def receive_ping_report(report: schemas.PingReport, db: Session = Depends(get_db
 
     return report
 
-@app.get("/ping/", response_model=List[schemas.PingProbeResponse])
+@app.get("/ping/", response_model=List[schemas.PingProbeResponse], response_model_exclude_none=True)
 def get_ping_probes(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
     probes = db.query(models.PingProbe).options(joinedload(models.PingProbe.ping_results)).offset(skip).limit(limit).all()
     return probes
 
-@app.get("/ping/{probe_id}", response_model=schemas.PingProbeResponse)
+@app.get("/ping/{probe_id}", response_model=schemas.PingProbeResponse, response_model_exclude_none=True)
 def get_ping_probe(probe_id: UUID, db: Session = Depends(get_db)):
     probe = db.query(models.PingProbe).options(joinedload(models.PingProbe.ping_results)).filter(models.PingProbe.id == probe_id).first()
     if not probe:
